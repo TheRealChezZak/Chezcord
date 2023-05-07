@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Chill Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
+    <style>
+        body {
+            padding-top: 40px;
+            background-color: #333;
+            color: #eee;
+        }
+
+        #chat-container {
+            height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+            margin: 0;
+            background-color: #222;
+            padding: 10px;
+        }
+
+        .message-container {
+            display: flex;
+            margin-bottom: 5px;
+        }
+
+        .avatar-container {
+            margin-right: 5px;
+        }
+
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+        }
+
+        .username {
+            font-size: 0.8rem;
+            color: #ccc;
+        }
+
+        .message {
+            padding: 5px;
+            margin: 5px;
+            background-color: #eee;
+            color: #333;
+        }
+
+        .message.from-me {
+            background-color: #d4edda;
+            text-align: right;
+            color: #333;
+        }
+
+        .input {
+            background-color: #222;
+            color: #eee;
+        }
+
+        .button.is-primary {
+            background-color: #48c774;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="columns">
+            <div class="column is-two-thirds">
+                <div id="chat-container"></div>
+                <form id="message-form">
+                    <div class="field has-addons">
+                        <div class="control is-expanded">
+                            <input id="message-input" class="input" type="text" placeholder="Type your message...">
+                        </div>
+                        <div class="control">
+                            <button id="send-button" class="button is-primary">Send</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="column">
+                <form id="user-form">
+                    <div class="field">
+                        <label class="label">Username</label>
+                        <div class="control">
+                            <input id="username-input" class="input" type="text" placeholder="Enter your username...">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="label">Avatar</label>
+                        <div class="control">
+                            <input id="avatar-input" class="input" type="file">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="control">
+                            <button id="submit-button" class="button is-primary">Submit</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        var chatContainer = $('#chat-container');
+        var messageInput = $('#message-input');
+        var sendButton = $('#send-button');
+        var usernameInput = $('#username-input');
+        var avatarInput = $('#avatar-input');
+        var submitButton = $('#submit-button');
+        var username = '';
+        var avatar = '';
+        var messageForm = $('#message-form');
+
+        messageForm.submit(function(event) {
+            event.preventDefault();
+            sendMessage();
+        });
+
+        submitButton.click(function(event) {
+            event.preventDefault();
+            username = usernameInput.val();
+            avatar = avatarInput[0].files[0];
+            if (!username) {
+                alert('Please enter your username');
+                return;
+            }
+
+            if (!avatar) {
+                avatar = '/static/images/avatar-default.png';
+            } else {
+                var reader = new FileReader();
+                reader.onload = function() {
+                    avatar = reader.result;
+                }
+                reader.readAsDataURL(avatar);
+            }
+
+            usernameInput.prop('disabled', true);
+            avatarInput.prop('disabled', true);
+            submitButton.prop('disabled', true);
+
+            messageForm.show();
+
+            socket.emit('join', {
+                'username': username,
+                'avatar': avatar
+            });
+        });
+
+        function sendMessage() {
+            var message = messageInput.val();
+            if (!message) {
+                return;
+            }
+            messageInput.val('');
+            chatContainer.append('<div class="message from-me"><div class="avatar"><img src="' + avatar + '"></div><div class="text"><small>' + username + '</small><br>' + message + '</div></div>');
+            socket.emit('message', {
+                'username': username,
+                'avatar': avatar,
+                'message': message
+            });
+        }
+
+        function receiveMessage(data) {
+            chatContainer.append('<div class="message"><div class="avatar"><img src="' + data.avatar + '"></div><div class="text"><small>' + data.username + '</small><br>' + data.message + '</div></div>');
+        }
+
+        messageForm.submit(function(event) {
+            event.preventDefault();
+            sendMessage();
+        });
+
+        socket.on('message', receiveMessage);
